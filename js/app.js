@@ -18,7 +18,8 @@ const currentProfileDisplay = document.getElementById("currentProfileDisplay");
 
 const subjectSelect = document.getElementById("subjectSelect");
 const topicSelect = document.getElementById("topicSelect");
-const subtopicSelect = document.getElementById("subtopicSelect");
+const subtopicSelect = document.getElementById("subtopicSelect") || document.getElementById("subtopic-select");
+
 const startQuizBtn = document.getElementById("startQuizBtn");
 const randomiseAllBtn = document.getElementById("randomiseAllBtn");
 
@@ -36,57 +37,18 @@ function loadUserProfile() {
     if (savedProfile) {
         userProfile = JSON.parse(savedProfile);
         
-        yearSelect.value = userProfile.year || "";
+        if (yearSelect) yearSelect.value = userProfile.year || "";
         toggleGcseFields(userProfile.year);
         
         if (userProfile.year >= 4) {
-            routeSelect.value = userProfile.route || 1;
-            tierSelect.value = userProfile.tier || 1;
+            if (routeSelect) routeSelect.value = userProfile.route || 1;
+            if (tierSelect) tierSelect.value = userProfile.tier || 1;
         }
 
         updateHeaderBadge();
         populateSubjectDropdown();
     }
 }
-
-// Function to update the subtopic dropdown when a topic is selected
-function updateSubtopicDropdown(selectedTopicId) {
-    const subtopicDropdown = document.getElementById("subtopicSelect");
-    
-    if (!subtopicDropdown) return;
-
-    // Reset subtopic dropdown options
-    subtopicDropdown.innerHTML = `<option value="0">All Subtopics</option>`;
-
-    // If "All Topics" (0) or no topic is selected, keep it clean
-    if (!selectedTopicId || selectedTopicId === 0) return;
-
-    // Filter subtopics using our lookup dictionary
-    Object.keys(LOOKUP.subtopicToTopic).forEach(subId => {
-        const parentTopicId = LOOKUP.subtopicToTopic[subId];
-
-        if (parentTopicId === parseInt(selectedTopicId, 10)) {
-            const subName = LOOKUP.subtopics[subId];
-            
-            const option = document.createElement("option");
-            option.value = subId;
-            option.textContent = subName;
-            subtopicDropdown.appendChild(option);
-        }
-    });
-}
-
-// Event Listener setup (run after DOM is loaded)
-document.addEventListener("DOMContentLoaded", () => {
-    const topicDropdown = document.getElementById("topicSelect");
-
-    if (topicDropdown) {
-        topicDropdown.addEventListener("change", (event) => {
-            const selectedTopicId = event.target.value;
-            updateSubtopicDropdown(selectedTopicId);
-        });
-    }
-});
 
 function saveUserProfile() {
     const selectedYear = parseInt(yearSelect.value, 10);
@@ -126,12 +88,14 @@ function toggleGcseFields(yearId) {
 }
 
 function updateHeaderBadge() {
-    const yearName = LOOKUP.years[userProfile.year] || "Not Set";
+    if (!currentProfileDisplay) return;
+
+    const yearName = (typeof LOOKUP !== "undefined" && LOOKUP.years[userProfile.year]) || "Not Set";
 
     if (userProfile.year >= 4) {
-        const routeName = LOOKUP.routes[userProfile.route];
-        const tierName = LOOKUP.tiers[userProfile.tier];
-        currentProfileDisplay.textContent = `${yearName} • ${routeName} (${tierName})`;
+        const routeName = LOOKUP.routes[userProfile.route] || "";
+        const tierName = LOOKUP.tiers[userProfile.tier] || "";
+        currentProfileDisplay.textContent = `${yearName} - ${routeName} (${tierName})`;
     } else {
         currentProfileDisplay.textContent = yearName;
     }
@@ -141,25 +105,32 @@ function updateHeaderBadge() {
 // 3. CURRICULUM & QUESTION BANK MAPPING
 // ==========================================
 function populateSubjectDropdown() {
-    subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
-    topicSelect.innerHTML = '<option value="">-- Select Topic --</option>';
-    subtopicSelect.innerHTML = '<option value="">-- Select Subtopic --</option>';
+    if (!subjectSelect) return;
 
-    topicSelect.disabled = true;
-    subtopicSelect.disabled = true;
-    startQuizBtn.disabled = true;
+    subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
+    if (topicSelect) {
+        topicSelect.innerHTML = '<option value="">-- Select Topic --</option>';
+        topicSelect.disabled = true;
+    }
+    if (subtopicSelect) {
+        subtopicSelect.innerHTML = '<option value="">-- Select Subtopic --</option>';
+        subtopicSelect.disabled = true;
+    }
+    if (startQuizBtn) startQuizBtn.disabled = true;
 
     if (!userProfile.year) {
         subjectSelect.disabled = true;
         return;
     }
 
-    Object.keys(LOOKUP.subjects).forEach(subjectId => {
-        const option = document.createElement("option");
-        option.value = subjectId;
-        option.textContent = LOOKUP.subjects[subjectId];
-        subjectSelect.appendChild(option);
-    });
+    if (typeof LOOKUP !== "undefined" && LOOKUP.subjects) {
+        Object.keys(LOOKUP.subjects).forEach(subjectId => {
+            const option = document.createElement("option");
+            option.value = subjectId;
+            option.textContent = LOOKUP.subjects[subjectId];
+            subjectSelect.appendChild(option);
+        });
+    }
 
     subjectSelect.disabled = false;
 }
@@ -167,13 +138,17 @@ function populateSubjectDropdown() {
 function handleSubjectChange() {
     const subjectId = parseInt(subjectSelect.value, 10);
 
-    topicSelect.innerHTML = '<option value="">-- Select Topic --</option>';
-    subtopicSelect.innerHTML = '<option value="">-- Select Subtopic --</option>';
-    subtopicSelect.disabled = true;
-    startQuizBtn.disabled = true;
+    if (topicSelect) {
+        topicSelect.innerHTML = '<option value="">-- Select Topic --</option>';
+    }
+    if (subtopicSelect) {
+        subtopicSelect.innerHTML = '<option value="">-- Select Subtopic --</option>';
+        subtopicSelect.disabled = true;
+    }
+    if (startQuizBtn) startQuizBtn.disabled = true;
 
     if (!subjectId || !userProfile.year) {
-        topicSelect.disabled = true;
+        if (topicSelect) topicSelect.disabled = true;
         return;
     }
 
@@ -183,7 +158,6 @@ function handleSubjectChange() {
     const mapKey = `${userProfile.year}_${subjectId}`;
     if (typeof CURRICULUM_MAP !== "undefined" && CURRICULUM_MAP[mapKey]) {
         const mappedEntry = CURRICULUM_MAP[mapKey];
-        // Handles both array format [36,37,38,39] and object format { topics: [36,37,38,39] }
         topicIds = Array.isArray(mappedEntry) ? mappedEntry : (mappedEntry.topics || []);
     }
 
@@ -198,26 +172,28 @@ function handleSubjectChange() {
         )];
     }
 
-    if (topicIds.length > 0) {
+    if (topicIds.length > 0 && topicSelect) {
         topicIds.forEach(topicId => {
             const option = document.createElement("option");
             option.value = topicId;
-            option.textContent = LOOKUP.topics[topicId] || `Topic ${topicId}`;
+            option.textContent = (typeof LOOKUP !== "undefined" && LOOKUP.topics[topicId]) || `Topic ${topicId}`;
             topicSelect.appendChild(option);
         });
         topicSelect.disabled = false;
-    } else {
+    } else if (topicSelect) {
         topicSelect.innerHTML = '<option value="">-- No topics found --</option>';
         topicSelect.disabled = true;
     }
 }
 
-function handleTopicChange() {
+async function handleTopicChange() {
     const subjectId = parseInt(subjectSelect.value, 10);
     const topicId = parseInt(topicSelect.value, 10);
 
+    if (!subtopicSelect) return;
+
     subtopicSelect.innerHTML = '<option value="">-- Select Subtopic --</option>';
-    startQuizBtn.disabled = true;
+    if (startQuizBtn) startQuizBtn.disabled = true;
 
     if (!topicId || !subjectId || !userProfile.year) {
         subtopicSelect.disabled = true;
@@ -226,23 +202,21 @@ function handleTopicChange() {
 
     let subtopicIds = [];
 
-    // 1. Get official subtopic IDs for this Year & Subject from CURRICULUM_MAP
+    // 1. Check CURRICULUM_MAP first
     const mapKey = `${userProfile.year}_${subjectId}`;
     if (typeof CURRICULUM_MAP !== "undefined" && CURRICULUM_MAP[mapKey]) {
         subtopicIds = CURRICULUM_MAP[mapKey].subtopics || [];
     }
 
-    // 2. Fallback: Extract unique subtopic IDs from QUESTION_BANK for this topic
-    if (subtopicIds.length === 0 && typeof QUESTION_BANK !== "undefined") {
+    // 2. Fallback: Fetch subject JSON dynamically to extract available subtopics
+    if (subtopicIds.length === 0) {
+        const questions = await fetchQuestionsBySubject(subjectId);
         subtopicIds = [...new Set(
-            QUESTION_BANK
+            questions
                 .filter(q => {
-                    const qYear = q.year ?? q.yearId ?? q.yearsID;
-                    const qSub = q.subject ?? q.subjectId;
+                    const qYear = q.year ?? q.yearId;
                     const qTopic = q.topic ?? q.topicId;
-                    return Number(qYear) === Number(userProfile.year) && 
-                           Number(qSub) === subjectId && 
-                           Number(qTopic) === topicId;
+                    return Number(qYear) === Number(userProfile.year) && Number(qTopic) === topicId;
                 })
                 .map(q => Number(q.subtopic ?? q.subtopicId))
                 .filter(Boolean)
@@ -251,7 +225,6 @@ function handleTopicChange() {
 
     // Populate dropdown
     if (subtopicIds.length > 0) {
-        // Add "All Subtopics" option first
         const allOption = document.createElement("option");
         allOption.value = "all";
         allOption.textContent = "All Subtopics";
@@ -260,59 +233,59 @@ function handleTopicChange() {
         subtopicIds.forEach(subId => {
             const option = document.createElement("option");
             option.value = subId;
-            option.textContent = LOOKUP.subtopics[subId] || `Subtopic ${subId}`;
+            option.textContent = (typeof LOOKUP !== "undefined" && LOOKUP.subtopics[subId]) || `Subtopic ${subId}`;
             subtopicSelect.appendChild(option);
         });
 
-        // Default to "all" and immediately enable the button
         subtopicSelect.value = "all";
         subtopicSelect.disabled = false;
-        startQuizBtn.disabled = false;
+        if (startQuizBtn) startQuizBtn.disabled = false;
     } else {
         subtopicSelect.innerHTML = '<option value="">-- No subtopics available --</option>';
         subtopicSelect.disabled = true;
-        startQuizBtn.disabled = true;
+        if (startQuizBtn) startQuizBtn.disabled = true;
     }
 }
 
 function handleSubtopicChange() {
-    // Enable button whenever any option (including "all") has a non-empty value
-    const subtopicVal = subtopicSelect.value;
-    startQuizBtn.disabled = !subtopicVal;
+    const subtopicVal = subtopicSelect ? subtopicSelect.value : "";
+    if (startQuizBtn) {
+        startQuizBtn.disabled = !subtopicVal;
+    }
 }
 
 // ==========================================
 // 4. EVENT LISTENERS
 // ==========================================
 function setupEventListeners() {
-    yearSelect.addEventListener("change", (e) => {
-        const selectedYear = parseInt(e.target.value, 10);
-        toggleGcseFields(selectedYear);
-    });
-
-    saveProfileBtn.addEventListener("click", saveUserProfile);
-
-    subjectSelect.addEventListener("change", handleSubjectChange);
-    topicSelect.addEventListener("change", handleTopicChange);
-    subtopicSelect.addEventListener("change", handleSubtopicChange);
-    
-    // Enable button when subtopic changes
-    subtopicSelect.addEventListener("change", () => {
-    if (subtopicSelect.value) {
-        startQuizBtn.disabled = false;
-    } else {
-        startQuizBtn.disabled = true;
+    if (yearSelect) {
+        yearSelect.addEventListener("change", (e) => {
+            const selectedYear = parseInt(e.target.value, 10);
+            toggleGcseFields(selectedYear);
+        });
     }
-});
 
-    // Attach click listener directly
+    if (saveProfileBtn) {
+        saveProfileBtn.addEventListener("click", saveUserProfile);
+    }
+
+    if (subjectSelect) {
+        subjectSelect.addEventListener("change", handleSubjectChange);
+    }
+    if (topicSelect) {
+        topicSelect.addEventListener("change", handleTopicChange);
+    }
+    if (subtopicSelect) {
+        subtopicSelect.addEventListener("change", handleSubtopicChange);
+    }
+
     if (startQuizBtn) {
         startQuizBtn.addEventListener("click", startQuiz);
     }
 }
 
 // ==========================================
-// 4. QUIZ GENERATION LOGIC
+// 5. QUIZ GENERATION LOGIC
 // ==========================================
 function startQuiz() {
     console.log("Start Quiz clicked!");
@@ -320,7 +293,7 @@ function startQuiz() {
     const selectedYear = userProfile.year;
     const selectedSubject = parseInt(subjectSelect.value, 10);
     const selectedTopic = parseInt(topicSelect.value, 10);
-    const selectedSubtopic = subtopicSelect.value; // Keep as string to preserve "all"
+    const selectedSubtopic = subtopicSelect ? subtopicSelect.value : "";
 
     if (!selectedSubtopic) {
         alert("Please select a subtopic (or 'All Subtopics') first.");
@@ -331,11 +304,43 @@ function startQuiz() {
         year: selectedYear,
         subject: selectedSubject,
         topic: selectedTopic || 0,
-        subtopic: selectedSubtopic, // Will pass "all" or specific numerical ID (e.g., 401)
+        subtopic: selectedSubtopic, // Passes "all" or numerical ID
         route: userProfile.route || 0,
         tier: userProfile.tier || 0
     });
 
     // Redirect to quiz page
     window.location.href = `quiz.html?${params.toString()}`;
+}
+
+// Map Subject IDs to JSON file paths
+const SUBJECT_FILE_MAP = {
+    1: 'data/biology.json',
+    2: 'data/chemistry.json',
+    3: 'data/physics.json'
+};
+
+/**
+ * Fetches questions for a specific subject ID.
+ * @param {number} subjectId 
+ * @returns {Promise<Array>} Array of question objects
+ */
+async function fetchQuestionsBySubject(subjectId) {
+    const filePath = SUBJECT_FILE_MAP[subjectId];
+
+    if (!filePath) {
+        console.warn(`No JSON file mapped for subject ID: ${subjectId}`);
+        return [];
+    }
+
+    try {
+        const response = await fetch(filePath);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error(`Failed to load ${filePath}:`, error);
+        return [];
+    }
 }

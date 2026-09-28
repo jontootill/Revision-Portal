@@ -15,41 +15,41 @@ let sessionQuestions = {
     green: []
 };
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     const wrapper = document.querySelector(".quiz-wrapper");
-
-    if (typeof QUESTION_BANK === "undefined" || !Array.isArray(QUESTION_BANK)) {
-        if (wrapper) {
-            wrapper.innerHTML = `<h2 style="color:red; text-align:center;">Error: QUESTION_BANK not loaded.</h2>`;
-        }
-        return;
-    }
 
     const urlParams = new URLSearchParams(window.location.search);
     const yearId = parseInt(urlParams.get("year"), 10);
     const subjectId = parseInt(urlParams.get("subject"), 10);
     const topicId = parseInt(urlParams.get("topic"), 10);
-    const rawSubtopic = urlParams.get("subtopic"); // Read raw string ("all" or number)
+    const rawSubtopic = urlParams.get("subtopic");
     const tierId = parseInt(urlParams.get("tier"), 10);
 
-    // Filter questions safely
-    let filtered = QUESTION_BANK.filter(q => {
+    // Fetch only the relevant subject questions from JSON
+    const questions = await fetchQuestionsBySubject(subjectId);
+
+    if (!questions || questions.length === 0) {
+        if (wrapper) {
+            wrapper.innerHTML = `<h2 style="color:red; text-align:center;">Error: Could not load questions for this subject.</h2>`;
+        }
+        return;
+    }
+
+    // Filter questions
+    let filtered = questions.filter(q => {
         if (!q) return false;
 
-        const qYear = Number(q.year ?? q.yearId ?? q.yearsID ?? q.year_id ?? 0);
-        const qSub = Number(q.subject ?? q.subjectId ?? q.subject_id ?? 0);
-        const qTopic = Number(q.topic ?? q.topicId ?? q.topic_id ?? 0);
-        const qSubtopic = Number(q.subtopic ?? q.subTopic ?? q.subtopicId ?? q.subtopic_id ?? 0);
+        const qYear = Number(q.year ?? q.yearId ?? 0);
+        const qSub = Number(q.subject ?? q.subjectId ?? 0);
+        const qTopic = Number(q.topic ?? q.topicId ?? 0);
+        const qSubtopic = Number(q.subtopic ?? q.subtopicId ?? 0);
 
         let matches = true;
 
         if (!isNaN(yearId) && yearId > 0) matches = matches && (qYear === yearId);
         if (!isNaN(subjectId) && subjectId > 0) matches = matches && (qSub === subjectId);
-        
-        // Topic Filter (if provided)
         if (!isNaN(topicId) && topicId > 0) matches = matches && (qTopic === topicId);
 
-        // Subtopic Filter: Only filter by specific subtopic if NOT "all" or 0
         if (rawSubtopic && rawSubtopic !== "all" && rawSubtopic !== "0") {
             const subtopicId = parseInt(rawSubtopic, 10);
             if (!isNaN(subtopicId) && subtopicId > 0) {
@@ -64,21 +64,11 @@ document.addEventListener("DOMContentLoaded", () => {
         return matches;
     });
 
-    // Fallbacks if no exact filter matches
-    if (filtered.length === 0 && !isNaN(subjectId) && subjectId > 0) {
-        filtered = QUESTION_BANK.filter(q => {
-            if (!q) return false;
-            const qYear = Number(q.year ?? q.yearId ?? q.yearsID ?? 0);
-            const qSub = Number(q.subject ?? q.subjectId ?? 0);
-            return (qYear === yearId || yearId === 0) && qSub === subjectId;
-        });
-    }
-
     if (filtered.length === 0) {
-        filtered = QUESTION_BANK.filter(q => Boolean(q));
+        filtered = questions;
     }
 
-    // Fisher-Yates Shuffle for thorough randomisation
+    // Fisher-Yates Shuffle
     const shuffled = [...filtered];
     for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -90,6 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     displayQuestion();
 });
+    
 
 function displayQuestion() {
     const q = currentQuizQuestions[currentQuestionIndex];
@@ -263,3 +254,30 @@ window.toggleReview = function(category) {
     html += `</div>`;
     container.innerHTML = html;
 };
+
+// Map Subject IDs to JSON file paths
+const SUBJECT_FILE_MAP = {
+    1: 'data/biology.json',
+    2: 'data/chemistry.json',
+    3: 'data/physics.json'
+};
+
+async function fetchQuestionsBySubject(subjectId) {
+    const filePath = SUBJECT_FILE_MAP[subjectId];
+
+    if (!filePath) {
+        console.warn(`No JSON file mapped for subject ID: ${subjectId}`);
+        return [];
+    }
+
+    try {
+        const response = await fetch(filePath);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error(`Failed to load ${filePath}:`, error);
+        return [];
+    }
+}
