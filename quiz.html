@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Science Quiz</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+    <div class="quiz-wrapper">
+        <div class="quiz-header">
+            <span id="questionTracker" class="tracker-badge">Question 1 of 1</span>
+        </div>
+
+        <!-- 3D Flashcard Container -->
+        <div class="flashcard-container" onclick="flipCard()">
+            <div id="flashcard" class="flashcard">
+                <!-- Front Side (Question) -->
+                <div class="card-face card-front">
+                    <span class="card-label">QUESTION</span>
+                    <h2 id="questionText">Loading...</h2>
+                    <p class="card-hint">💡 Click card to reveal answer</p>
+                </div>
+                
+                <!-- Back Side (Answer) -->
+                <div class="card-face card-back">
+                    <span class="card-label">ANSWER</span>
+                    <h3 id="answerText">Loading...</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rating Controls (Hidden until card flips) -->
+        <div id="ratingSection" class="rating-container hidden">
+            <p class="rating-title">How well did you know this?</p>
+            <div class="rating-buttons">
+                <button class="rate-btn red" onclick="rateAnswer('red')">Incorrect 🔴</button>
+                <button class="rate-btn yellow" onclick="rateAnswer('yellow')">Partly correct 🟡</button>
+                <button class="rate-btn green" onclick="rateAnswer('green')">Got it! 🟢</button>
+            </div>
+        </div>
+
+        <!-- Action Navigation -->
+        <div class="quiz-actions">
+            <button id="nextBtn" class="next-btn" onclick="nextQuestion()">Next Question ➔</button>
+        </div>
+    </div>
+
+    <script src="js/lookup.js"></script>
+    <script src="js/questions.js"></script>
+    <script src="js/quiz.js"></script>
+</body>
+</html>
