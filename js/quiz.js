@@ -28,7 +28,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const urlParams = new URLSearchParams(window.location.search);
     const yearId = parseInt(urlParams.get("year"), 10);
     const subjectId = parseInt(urlParams.get("subject"), 10);
-    const subtopicId = parseInt(urlParams.get("subtopic"), 10);
+    const topicId = parseInt(urlParams.get("topic"), 10);
+    const rawSubtopic = urlParams.get("subtopic"); // Read raw string ("all" or number)
     const tierId = parseInt(urlParams.get("tier"), 10);
 
     // Filter questions safely
@@ -37,13 +38,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const qYear = Number(q.year ?? q.yearId ?? q.yearsID ?? q.year_id ?? 0);
         const qSub = Number(q.subject ?? q.subjectId ?? q.subject_id ?? 0);
+        const qTopic = Number(q.topic ?? q.topicId ?? q.topic_id ?? 0);
         const qSubtopic = Number(q.subtopic ?? q.subTopic ?? q.subtopicId ?? q.subtopic_id ?? 0);
 
         let matches = true;
 
         if (!isNaN(yearId) && yearId > 0) matches = matches && (qYear === yearId);
         if (!isNaN(subjectId) && subjectId > 0) matches = matches && (qSub === subjectId);
-        if (!isNaN(subtopicId) && subtopicId > 0) matches = matches && (qSubtopic === subtopicId);
+        
+        // Topic Filter (if provided)
+        if (!isNaN(topicId) && topicId > 0) matches = matches && (qTopic === topicId);
+
+        // Subtopic Filter: Only filter by specific subtopic if NOT "all" or 0
+        if (rawSubtopic && rawSubtopic !== "all" && rawSubtopic !== "0") {
+            const subtopicId = parseInt(rawSubtopic, 10);
+            if (!isNaN(subtopicId) && subtopicId > 0) {
+                matches = matches && (qSubtopic === subtopicId);
+            }
+        }
 
         if (yearId >= 4 && tierId > 0 && q.tier && q.tier > 0) {
             if (q.tier !== tierId) matches = false;
@@ -66,7 +78,14 @@ document.addEventListener("DOMContentLoaded", () => {
         filtered = QUESTION_BANK.filter(q => Boolean(q));
     }
 
-    currentQuizQuestions = [...filtered].sort(() => 0.5 - Math.random()).slice(0, 10);
+    // Fisher-Yates Shuffle for thorough randomisation
+    const shuffled = [...filtered];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    currentQuizQuestions = shuffled.slice(0, 10);
     currentQuestionIndex = 0;
 
     displayQuestion();

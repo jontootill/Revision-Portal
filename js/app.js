@@ -232,14 +232,17 @@ function handleTopicChange() {
         subtopicIds = CURRICULUM_MAP[mapKey].subtopics || [];
     }
 
-    // 2. Fallback: If map has no subtopics, extract unique `subtopic` values from QUESTION_BANK
+    // 2. Fallback: Extract unique subtopic IDs from QUESTION_BANK for this topic
     if (subtopicIds.length === 0 && typeof QUESTION_BANK !== "undefined") {
         subtopicIds = [...new Set(
             QUESTION_BANK
                 .filter(q => {
                     const qYear = q.year ?? q.yearId ?? q.yearsID;
                     const qSub = q.subject ?? q.subjectId;
-                    return Number(qYear) === Number(userProfile.year) && Number(qSub) === subjectId;
+                    const qTopic = q.topic ?? q.topicId;
+                    return Number(qYear) === Number(userProfile.year) && 
+                           Number(qSub) === subjectId && 
+                           Number(qTopic) === topicId;
                 })
                 .map(q => Number(q.subtopic ?? q.subtopicId))
                 .filter(Boolean)
@@ -248,22 +251,34 @@ function handleTopicChange() {
 
     // Populate dropdown
     if (subtopicIds.length > 0) {
+        // Add "All Subtopics" option first
+        const allOption = document.createElement("option");
+        allOption.value = "all";
+        allOption.textContent = "All Subtopics";
+        subtopicSelect.appendChild(allOption);
+
         subtopicIds.forEach(subId => {
             const option = document.createElement("option");
             option.value = subId;
             option.textContent = LOOKUP.subtopics[subId] || `Subtopic ${subId}`;
             subtopicSelect.appendChild(option);
         });
+
+        // Default to "all" and immediately enable the button
+        subtopicSelect.value = "all";
         subtopicSelect.disabled = false;
+        startQuizBtn.disabled = false;
     } else {
         subtopicSelect.innerHTML = '<option value="">-- No subtopics available --</option>';
         subtopicSelect.disabled = true;
+        startQuizBtn.disabled = true;
     }
 }
 
 function handleSubtopicChange() {
-    const subtopicId = parseInt(subtopicSelect.value, 10);
-    startQuizBtn.disabled = !subtopicId;
+    // Enable button whenever any option (including "all") has a non-empty value
+    const subtopicVal = subtopicSelect.value;
+    startQuizBtn.disabled = !subtopicVal;
 }
 
 // ==========================================
@@ -279,13 +294,16 @@ function setupEventListeners() {
 
     subjectSelect.addEventListener("change", handleSubjectChange);
     topicSelect.addEventListener("change", handleTopicChange);
+    subtopicSelect.addEventListener("change", handleSubtopicChange);
     
     // Enable button when subtopic changes
     subtopicSelect.addEventListener("change", () => {
-        if (subtopicSelect.value) {
-            startQuizBtn.disabled = false;
-        }
-    });
+    if (subtopicSelect.value) {
+        startQuizBtn.disabled = false;
+    } else {
+        startQuizBtn.disabled = true;
+    }
+});
 
     // Attach click listener directly
     if (startQuizBtn) {
@@ -297,15 +315,15 @@ function setupEventListeners() {
 // 4. QUIZ GENERATION LOGIC
 // ==========================================
 function startQuiz() {
-    console.log("Start Quiz clicked!"); // Helps verify if the click registers in Console (F12)
+    console.log("Start Quiz clicked!");
 
     const selectedYear = userProfile.year;
     const selectedSubject = parseInt(subjectSelect.value, 10);
     const selectedTopic = parseInt(topicSelect.value, 10);
-    const selectedSubtopic = parseInt(subtopicSelect.value, 10);
+    const selectedSubtopic = subtopicSelect.value; // Keep as string to preserve "all"
 
     if (!selectedSubtopic) {
-        alert("Please select a subtopic first.");
+        alert("Please select a subtopic (or 'All Subtopics') first.");
         return;
     }
 
@@ -313,7 +331,7 @@ function startQuiz() {
         year: selectedYear,
         subject: selectedSubject,
         topic: selectedTopic || 0,
-        subtopic: selectedSubtopic,
+        subtopic: selectedSubtopic, // Will pass "all" or specific numerical ID (e.g., 401)
         route: userProfile.route || 0,
         tier: userProfile.tier || 0
     });
