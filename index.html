@@ -23,7 +23,7 @@
         
         <!-- STEP 1: PROFILE SELECTION -->
         <section class="card profile-card">
-            <h2>1. Set Your Study Profile</h2>
+            <h2>Set Your Study Profile</h2>
             <p class="subtitle">Choose your year group to unlock matching topics.</p>
 
             <div class="form-row">
@@ -31,15 +31,16 @@
                     <label for="yearSelect">Year Group:</label>
                     <select id="yearSelect">
                         <option value="">-- Select Year --</option>
-                        <option value="1">Year 7</option>
-                        <option value="2">Year 8</option>
-                        <option value="3">Year 9</option>
-                        <option value="4">Year 10</option>
-                        <option value="5">Year 11</option>
+                        <!-- FIXED: Values must match actual year numbers (7-11) -->
+                        <option value="7">Year 7</option>
+                        <option value="8">Year 8</option>
+                        <option value="9">Year 9</option>
+                        <option value="10">Year 10</option>
+                        <option value="11">Year 11</option>
                     </select>
                 </div>
 
-                <!-- CRITICAL WRAPPER FOR GCSE HIDING -->
+                <!-- GCSE OPTIONS WRAPPER -->
                 <div id="gcseOptions" class="gcse-options hidden">
                     <div class="form-group">
                         <label for="routeSelect">Course Route:</label>
@@ -70,6 +71,10 @@
                 <label for="subjectSelect">Subject:</label>
                 <select id="subjectSelect" disabled>
                     <option value="">-- Select Subject --</option>
+                    <!-- Subject IDs matching curriculum.json -->
+                    <option value="1">Biology</option>
+                    <option value="2">Chemistry</option>
+                    <option value="3">Physics</option>
                 </select>
             </div>
 
@@ -82,8 +87,9 @@
 
             <div class="form-group">
                 <label for="subtopicSelect">Subtopic:</label>
-                <select id="subtopic-select">
-    <option value="all">All Subtopics</option>
+                <!-- FIXED: Changed ID from subtopic-select to subtopicSelect -->
+                <select id="subtopicSelect" disabled>
+                    <option value="all">All Subtopics</option>
                 </select>
             </div>
 
@@ -95,8 +101,7 @@
 
     </main>
 
-    <script src="js/lookup.js"></script>
-    <script src="js/questions.js"></script>
+
     <script src="js/app.js"></script>
     <script src="js/quiz.js"></script>
 </body>

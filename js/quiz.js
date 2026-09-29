@@ -1,19 +1,32 @@
-let currentQuizQuestions = [];
-let currentQuestionIndex = 0;
-let isFlipped = false;
+// Global scope protection against duplicate declarations
+if (typeof window.currentQuizQuestions === 'undefined') window.currentQuizQuestions = [];
+if (typeof window.currentQuestionIndex === 'undefined') window.currentQuestionIndex = 0;
+if (typeof window.isFlipped === 'undefined') window.isFlipped = false;
 
-// Session Tracking Stats & Question Lists
-let sessionStats = {
-    red: 0,
-    yellow: 0,
-    green: 0
-};
+if (typeof window.sessionStats === 'undefined') {
+    window.sessionStats = {
+        red: 0,
+        yellow: 0,
+        green: 0
+    };
+}
 
-let sessionQuestions = {
-    red: [],
-    yellow: [],
-    green: []
-};
+if (typeof window.sessionQuestions === 'undefined') {
+    window.sessionQuestions = {
+        red: [],
+        yellow: [],
+        green: []
+    };
+}
+
+// Map Subject IDs to JSON file paths safely on window
+if (typeof window.SUBJECT_FILE_MAP === 'undefined') {
+    window.SUBJECT_FILE_MAP = {
+        1: 'data/biology.json',
+        2: 'data/chemistry.json',
+        3: 'data/physics.json'
+    };
+}
 
 document.addEventListener("DOMContentLoaded", async () => {
     const wrapper = document.querySelector(".quiz-wrapper");
@@ -25,17 +38,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     const rawSubtopic = urlParams.get("subtopic");
     const tierId = parseInt(urlParams.get("tier"), 10);
 
-    // Fetch only the relevant subject questions from JSON
+    // Fetch questions from subject JSON
     const questions = await fetchQuestionsBySubject(subjectId);
 
-    if (!questions || questions.length === 0) {
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
         if (wrapper) {
-            wrapper.innerHTML = `<h2 style="color:red; text-align:center;">Error: Could not load questions for this subject.</h2>`;
+            wrapper.innerHTML = `<h2 style="color:#dc2626; text-align:center; padding: 20px;">Error: Could not load questions for subject ID ${subjectId}.</h2>`;
         }
         return;
     }
 
-    // Filter questions
+    // Strict parameter filtering
     let filtered = questions.filter(q => {
         if (!q) return false;
 
@@ -58,13 +71,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         if (yearId >= 4 && tierId > 0 && q.tier && q.tier > 0) {
-            if (q.tier !== tierId) matches = false;
+            if (Number(q.tier) !== tierId) matches = false;
         }
 
         return matches;
     });
 
+    // Fall back to full array if zero exact matches found
     if (filtered.length === 0) {
+        console.warn("No exact filter matches found. Falling back to all loaded subject questions.");
         filtered = questions;
     }
 
@@ -75,18 +90,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
 
-    currentQuizQuestions = shuffled.slice(0, 10);
-    currentQuestionIndex = 0;
+    window.currentQuizQuestions = shuffled.slice(0, 10);
+    window.currentQuestionIndex = 0;
 
     displayQuestion();
 });
-    
 
 function displayQuestion() {
-    const q = currentQuizQuestions[currentQuestionIndex];
+    const q = window.currentQuizQuestions[window.currentQuestionIndex];
     if (!q) return;
 
-    isFlipped = false;
+    window.isFlipped = false;
 
     const card = document.getElementById("flashcard");
     const ratingSection = document.getElementById("ratingSection");
@@ -99,11 +113,10 @@ function displayQuestion() {
     const aText = document.getElementById("answerText");
     const qImg = document.getElementById("answerImage");
 
-    if (tracker) tracker.textContent = `Question ${currentQuestionIndex + 1} of ${currentQuizQuestions.length}`;
+    if (tracker) tracker.textContent = `Question ${window.currentQuestionIndex + 1} of ${window.currentQuizQuestions.length}`;
     if (qText) qText.textContent = q.question || q.questionText || "Question unavailable";
     if (aText) aText.textContent = q.answer || q.answerText || "Answer unavailable";
 
-    // Handle Optional Answer Images
     if (qImg) {
         if (q.image) {
             qImg.src = q.image;
@@ -116,7 +129,7 @@ function displayQuestion() {
 
     const nextBtn = document.getElementById("nextBtn");
     if (nextBtn) {
-        nextBtn.textContent = (currentQuestionIndex === currentQuizQuestions.length - 1) ? "Finish Quiz ➔" : "Next Question ➔";
+        nextBtn.textContent = (window.currentQuestionIndex === window.currentQuizQuestions.length - 1) ? "Finish Quiz ➔" : "Next Question ➔";
     }
 }
 
@@ -124,9 +137,9 @@ function flipCard() {
     const card = document.getElementById("flashcard");
     const ratingSection = document.getElementById("ratingSection");
 
-    isFlipped = !isFlipped;
+    window.isFlipped = !window.isFlipped;
 
-    if (isFlipped) {
+    if (window.isFlipped) {
         if (card) card.classList.add("flipped");
         if (ratingSection) ratingSection.classList.remove("hidden");
     } else {
@@ -138,27 +151,23 @@ function flipCard() {
 function rateAnswer(rating, event) {
     if (event) event.stopPropagation();
 
-    const currentQ = currentQuizQuestions[currentQuestionIndex];
+    const currentQ = window.currentQuizQuestions[window.currentQuestionIndex];
 
-    // 1. Record session counts and push question object for post-quiz review
-    if (sessionStats.hasOwnProperty(rating)) {
-        sessionStats[rating]++;
-        sessionQuestions[rating].push(currentQ);
+    if (window.sessionStats.hasOwnProperty(rating)) {
+        window.sessionStats[rating]++;
+        window.sessionQuestions[rating].push(currentQ);
     }
 
-    // 2. Save to localStorage for persistent all-time stats
     updateAllTimeStats(rating);
-
-    // 3. Move to next card automatically
     nextQuestion();
 }
 
 function nextQuestion(event) {
     if (event) event.stopPropagation();
 
-    currentQuestionIndex++;
+    window.currentQuestionIndex++;
 
-    if (currentQuestionIndex < currentQuizQuestions.length) {
+    if (window.currentQuestionIndex < window.currentQuizQuestions.length) {
         displayQuestion();
     } else {
         showCompletionScreen();
@@ -177,7 +186,6 @@ function showCompletionScreen() {
     const wrapper = document.querySelector(".quiz-wrapper");
     if (!wrapper) return;
 
-    // Fetch persistent overall statistics
     const allTime = JSON.parse(localStorage.getItem("quiz_all_time_stats")) || { red: 0, yellow: 0, green: 0 };
 
     wrapper.innerHTML = `
@@ -185,30 +193,23 @@ function showCompletionScreen() {
             <h2 style="margin-bottom: 5px; color: #1e293b;">🎉 Quiz Complete!</h2>
             <p style="color: #64748b; margin-bottom: 25px;">Click any category below to review those questions:</p>
 
-            <!-- Interactive Session Buttons -->
             <div style="margin-bottom: 25px; padding: 15px; background: #f8fafc; border-radius: 12px;">
                 <h3 style="font-size: 0.85rem; color: #334155; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em;">This Session</h3>
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-weight: 600;">
-                    
                     <button onclick="toggleReview('green')" style="background: #dcfce7; border: 1px solid #bbf7d0; color: #166534; padding: 12px; border-radius: 10px; cursor: pointer;">
-                        🟢 Got it<br><span style="font-size: 1.4rem;">${sessionStats.green}</span>
+                        🟢 Got it<br><span style="font-size: 1.4rem;">${window.sessionStats.green}</span>
                     </button>
-
                     <button onclick="toggleReview('yellow')" style="background: #fef3c7; border: 1px solid #fde68a; color: #92400e; padding: 12px; border-radius: 10px; cursor: pointer;">
-                        🟡 Needs practice<br><span style="font-size: 1.4rem;">${sessionStats.yellow}</span>
+                        🟡 Needs practice<br><span style="font-size: 1.4rem;">${window.sessionStats.yellow}</span>
                     </button>
-
                     <button onclick="toggleReview('red')" style="background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 12px; border-radius: 10px; cursor: pointer;">
-                        🔴 Need to relearn<br><span style="font-size: 1.4rem;">${sessionStats.red}</span>
+                        🔴 Need to relearn<br><span style="font-size: 1.4rem;">${window.sessionStats.red}</span>
                     </button>
-
                 </div>
             </div>
 
-            <!-- Review Area Container -->
             <div id="reviewContainer" style="text-align: left; margin-bottom: 25px;"></div>
 
-            <!-- All-Time Stats Section -->
             <div style="margin-bottom: 30px; padding: 15px; background: #f8fafc; border-radius: 12px;">
                 <h3 style="font-size: 0.85rem; color: #334155; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em;">All-Time Totals</h3>
                 <div style="display: flex; justify-content: space-around; font-weight: 600;">
@@ -223,12 +224,11 @@ function showCompletionScreen() {
     `;
 }
 
-// Global review toggling function called by button onclick events
 window.toggleReview = function(category) {
     const container = document.getElementById("reviewContainer");
     if (!container) return;
 
-    const list = sessionQuestions[category];
+    const list = window.sessionQuestions[category];
 
     if (!list || list.length === 0) {
         container.innerHTML = `
@@ -255,15 +255,8 @@ window.toggleReview = function(category) {
     container.innerHTML = html;
 };
 
-// Map Subject IDs to JSON file paths
-const SUBJECT_FILE_MAP = {
-    1: 'data/biology.json',
-    2: 'data/chemistry.json',
-    3: 'data/physics.json'
-};
-
 async function fetchQuestionsBySubject(subjectId) {
-    const filePath = SUBJECT_FILE_MAP[subjectId];
+    const filePath = window.SUBJECT_FILE_MAP[subjectId];
 
     if (!filePath) {
         console.warn(`No JSON file mapped for subject ID: ${subjectId}`);
@@ -275,7 +268,17 @@ async function fetchQuestionsBySubject(subjectId) {
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return await response.json();
+        
+        const data = await response.json();
+
+        if (Array.isArray(data)) {
+            return data;
+        } else if (data && Array.isArray(data.questions)) {
+            return data.questions;
+        } else {
+            console.error(`Unexpected JSON structure in ${filePath}. Expected array or object with 'questions' key.`);
+            return [];
+        }
     } catch (error) {
         console.error(`Failed to load ${filePath}:`, error);
         return [];
